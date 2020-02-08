@@ -1,4 +1,5 @@
 ﻿using AspNet.Identity.MongoDB;
+using ByteBank.Forum.App_Start.Identity;
 using ByteBank.Forum.MongoContext;
 using ByteBank.Forum.MongoContext.Model;
 using Microsoft.AspNet.Identity;
@@ -34,6 +35,10 @@ namespace ByteBank.Forum
                     DigitsRequired = true
                 };
                 userManager.UserValidator = userValidator;
+                userManager.EmailService = new EmailService();
+                var protectionProvider = opcoes.DataProtectionProvider;
+                var protectionProviderCreated = protectionProvider.Create("ByteBank.Forum");
+                userManager.UserTokenProvider = new DataProtectorTokenProvider<Conta>(protectionProviderCreated);
                 return userManager;
             });
         }

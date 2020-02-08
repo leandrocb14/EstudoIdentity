@@ -22,9 +22,9 @@ namespace ByteBank.Forum.Controllers
         {
             get
             {
-                if(_userManager == null)                
+                if (_userManager == null)
                     _userManager = HttpContext.GetOwinContext().GetUserManager<UserManager<Conta>>();
-                
+
                 return _userManager;
             }
             set { _userManager = value; }
@@ -37,35 +37,71 @@ namespace ByteBank.Forum.Controllers
         }
 
         [HttpPost]
-        public ActionResult Registrar(ContaRegistrarViewModel model)
+        public async Task<ActionResult> Registrar(ContaRegistrarViewModel model)
         {
             if (ModelState.IsValid)
             {
-                var usuario = UserManager.FindByEmail(model.Email);
+                var usuario = await UserManager.FindByEmailAsync(model.Email);
 
-                if(usuario != null)                
-                    return RedirectToAction("Index", "Home");                
+                if (usuario != null)
+                    return RedirectToAction("AguardandoConfirmacao");
                 else
                 {
-                    var result = UserManager.Create(new Conta()
+                    Conta conta = new Conta()
                     {
                         UserName = model.UserName,
                         Email = model.Email,
                         NomeCompleto = model.NomeCompleto
-                    }, model.Senha);
+                    };
+                    var result = await UserManager.CreateAsync(conta, model.Senha);
 
                     if (result.Succeeded)
-                        return RedirectToAction("Index", "Home");
+                    {
+                        await EnviarEmailConfirmacao(conta);
+                        return RedirectToAction("AguardandoConfirmacao");
+                    }
                     else
                         AdicionaErros(result);
-                }                
+                }
             }
             return View();
         }
 
+        public ActionResult AguardandoConfirmacao()
+        {
+            return View();
+        }
+
+        public ActionResult Error()
+        {
+            return View();
+        }
+
+        public async Task<ActionResult> ConfirmacaoEmail(string usuarioId, string token)
+        {
+            if (string.IsNullOrEmpty(usuarioId) || string.IsNullOrEmpty(token))
+                return View("Error");
+
+            var result = await UserManager.ConfirmEmailAsync(usuarioId, token);
+
+            if (result.Succeeded)            
+                return RedirectToAction("Index", "Home");            
+            else            
+                return View("Error");            
+        }
+
+        private async Task EnviarEmailConfirmacao(Conta conta)
+        {
+            var token = await _userManager.GenerateEmailConfirmationTokenAsync(conta.Id);
+
+            var linkCallBack = Url.Action("ConfirmacaoEmail", "Conta", new { usuarioId = conta.Id, token = token }, Request.Url.Scheme);
+
+            await UserManager.SendEmailAsync(conta.Id, "Fórum ByteBank - Confirmação de E-mail", $"Bem vindo ao Fórum ByteBank! Clique aqui para confirmar o seu email {linkCallBack}.");
+        }
+
         private void AdicionaErros(IdentityResult result)
         {
-            foreach(var erro in result.Errors)
+            foreach (var erro in result.Errors)
             {
                 ModelState.AddModelError("", erro);
             }
