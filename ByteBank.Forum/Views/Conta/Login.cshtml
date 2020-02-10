@@ -1,0 +1,15 @@
+﻿@model ByteBank.Forum.ViewModels.ContaLoginViewModel
+@{
+    ViewBag.Title = "Login";
+}
+
+<h2>Login</h2>
+
+@using (Html.BeginForm())
+{
+    @Html.ValidationSummary("", new { @class = "text-danger" })
+
+    @Html.EditorForModel()
+
+    <input type="submit" value="Logar"/>
+}

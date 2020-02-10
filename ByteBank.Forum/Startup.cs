@@ -7,7 +7,7 @@ using Microsoft.AspNet.Identity.Owin;
 using Microsoft.Owin;
 using Owin;
 
-[assembly: OwinStartup(typeof(ByteBank.Forum.Startup))]
+//[assembly: OwinStartup(typeof(ByteBank.Forum.Startup))]
 namespace ByteBank.Forum
 {
     public class Startup
@@ -40,6 +40,13 @@ namespace ByteBank.Forum
                 var protectionProviderCreated = protectionProvider.Create("ByteBank.Forum");
                 userManager.UserTokenProvider = new DataProtectorTokenProvider<Conta>(protectionProviderCreated);
                 return userManager;
+            });
+
+            builder.CreatePerOwinContext<SignInManager<Conta, string>>((opcoes, contextOwin) =>
+            {
+                var userManager = contextOwin.Get<UserManager<Conta>>();
+                var signInManager = new SignInManager<Conta, string>(userManager, contextOwin.Authentication);
+                return signInManager;
             });
         }
     }

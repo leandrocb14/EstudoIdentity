@@ -30,6 +30,20 @@ namespace ByteBank.Forum.Controllers
             set { _userManager = value; }
         }
 
+        private SignInManager<Conta, string> _signInManager;
+
+        public SignInManager<Conta, string> SignInManager
+        {
+            get
+            {
+                if (_signInManager == null)
+                    _signInManager = HttpContext.GetOwinContext().GetUserManager<SignInManager<Conta, string>>();
+
+                return _signInManager;
+            }
+            set { _signInManager = value; }
+        }
+
         // GET: Conta
         public ActionResult Registrar()
         {
@@ -84,10 +98,43 @@ namespace ByteBank.Forum.Controllers
 
             var result = await UserManager.ConfirmEmailAsync(usuarioId, token);
 
-            if (result.Succeeded)            
-                return RedirectToAction("Index", "Home");            
-            else            
-                return View("Error");            
+            if (result.Succeeded)
+                return RedirectToAction("Index", "Home");
+            else
+                return View("Error");
+        }
+
+        public async Task<ActionResult> Login()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        public async Task<ActionResult> Login(ContaLoginViewModel model)
+        {
+            if (ModelState.IsValid)
+            {
+                var usuario = await UserManager.FindByEmailAsync(model.Email);
+
+                if(usuario == null)
+                    return SenhaOuUsuarioInvalidos();
+
+                var signInResult = await SignInManager.PasswordSignInAsync(usuario.UserName, model.Senha, false, false);
+                switch (signInResult)
+                {
+                    case SignInStatus.Success:
+                        return RedirectToAction("Index", "Home");
+                    default:
+                        return SenhaOuUsuarioInvalidos();
+                }
+            }
+            return View(model);
+        }
+
+        private ActionResult SenhaOuUsuarioInvalidos()
+        {
+            ModelState.AddModelError("", "Credências inválida.");
+            return View();
         }
 
         private async Task EnviarEmailConfirmacao(Conta conta)
