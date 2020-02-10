@@ -119,7 +119,7 @@ namespace ByteBank.Forum.Controllers
                 if(usuario == null)
                     return SenhaOuUsuarioInvalidos();
 
-                var signInResult = await SignInManager.PasswordSignInAsync(usuario.UserName, model.Senha, false, false);
+                var signInResult = await SignInManager.PasswordSignInAsync(usuario.UserName, model.Senha, model.ContinuarLogado, false);
                 switch (signInResult)
                 {
                     case SignInStatus.Success:

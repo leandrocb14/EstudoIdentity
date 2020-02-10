@@ -5,6 +5,7 @@ using ByteBank.Forum.MongoContext.Model;
 using Microsoft.AspNet.Identity;
 using Microsoft.AspNet.Identity.Owin;
 using Microsoft.Owin;
+using Microsoft.Owin.Security.Cookies;
 using Owin;
 
 //[assembly: OwinStartup(typeof(ByteBank.Forum.Startup))]
@@ -47,6 +48,11 @@ namespace ByteBank.Forum
                 var userManager = contextOwin.Get<UserManager<Conta>>();
                 var signInManager = new SignInManager<Conta, string>(userManager, contextOwin.Authentication);
                 return signInManager;
+            });
+
+            builder.UseCookieAuthentication(new CookieAuthenticationOptions()
+            {
+                AuthenticationType =  DefaultAuthenticationTypes.ApplicationCookie
             });
         }
     }
