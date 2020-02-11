@@ -5,6 +5,7 @@ using ByteBank.Forum.MongoContext.Model;
 using ByteBank.Forum.ViewModels;
 using Microsoft.AspNet.Identity;
 using Microsoft.AspNet.Identity.Owin;
+using Microsoft.Owin.Security;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -43,6 +44,15 @@ namespace ByteBank.Forum.Controllers
             }
             set { _signInManager = value; }
         }
+
+        public IAuthenticationManager AuthenticationManager
+        {
+            get
+            {
+                return HttpContext.GetOwinContext().Authentication;
+            }
+        }
+
 
         // GET: Conta
         public ActionResult Registrar()
@@ -116,7 +126,7 @@ namespace ByteBank.Forum.Controllers
             {
                 var usuario = await UserManager.FindByEmailAsync(model.Email);
 
-                if(usuario == null)
+                if (usuario == null)
                     return SenhaOuUsuarioInvalidos();
 
                 var signInResult = await SignInManager.PasswordSignInAsync(usuario.UserName, model.Senha, model.ContinuarLogado, false);
@@ -129,6 +139,13 @@ namespace ByteBank.Forum.Controllers
                 }
             }
             return View(model);
+        }
+
+        [HttpPost]
+        public ActionResult Logoff()
+        {
+            AuthenticationManager.SignOut(DefaultAuthenticationTypes.ApplicationCookie);
+            return RedirectToAction("Login", "Conta");
         }
 
         private ActionResult SenhaOuUsuarioInvalidos()
