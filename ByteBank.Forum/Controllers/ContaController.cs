@@ -129,11 +129,18 @@ namespace ByteBank.Forum.Controllers
                 if (usuario == null)
                     return SenhaOuUsuarioInvalidos();
 
-                var signInResult = await SignInManager.PasswordSignInAsync(usuario.UserName, model.Senha, model.ContinuarLogado, false);
+                var signInResult = await SignInManager.PasswordSignInAsync(usuario.UserName, model.Senha, model.ContinuarLogado, true);
                 switch (signInResult)
                 {
                     case SignInStatus.Success:
                         return RedirectToAction("Index", "Home");
+                    case SignInStatus.LockedOut:
+                        var senhaCorreta = await UserManager.CheckPasswordAsync(usuario, model.Senha);
+                        if (senhaCorreta)
+                            ModelState.AddModelError("", "A conta se encontra bloqueada!");
+                        else
+                            return SenhaOuUsuarioInvalidos();
+                        break;
                     default:
                         return SenhaOuUsuarioInvalidos();
                 }
