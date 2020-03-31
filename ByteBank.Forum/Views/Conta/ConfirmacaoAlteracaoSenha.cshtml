@@ -1,0 +1,16 @@
+﻿@model ByteBank.Forum.ViewModels.ContaConfirmacaoAlteracaoSenhaViewModel
+
+@{
+    ViewBag.Title = "ConfirmacaoAlteracaoSenha";
+}
+
+<h2>Confirmacao Alteração Senha</h2>
+
+@using (Html.BeginForm("ConfirmacaoAlteracaoSenha", "Conta", FormMethod.Post))
+{
+    @Html.ValidationSummary("", new { @class = "text-danger" })
+
+    @Html.EditorForModel()
+
+    <input type="submit" value="Alterar Senha!" />
+}

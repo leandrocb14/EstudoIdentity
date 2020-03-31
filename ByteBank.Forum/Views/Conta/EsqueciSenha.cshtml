@@ -1,0 +1,17 @@
+﻿@model ByteBank.Forum.ViewModels.EsqueciSenhaViewModel
+
+@{
+    ViewBag.Title = "EsqueciSenha";
+}
+
+<h2>Esqueci minha senha</h2>
+<p>Preencha o campo de e-mail</p>
+
+@using (Html.BeginForm("EsqueciSenhaAsync", "Conta"))
+{
+    @Html.ValidationSummary("", new { @class = "text-danger" })
+
+    @Html.EditorForModel()
+
+    <input type="submit" value="Enviar" />
+}

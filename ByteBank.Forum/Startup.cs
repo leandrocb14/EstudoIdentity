@@ -6,8 +6,10 @@ using Microsoft.AspNet.Identity;
 using Microsoft.AspNet.Identity.Owin;
 using Microsoft.Owin;
 using Microsoft.Owin.Security.Cookies;
+using Microsoft.Owin.Security.Google;
 using Owin;
 using System;
+using System.Configuration;
 
 //[assembly: OwinStartup(typeof(ByteBank.Forum.Startup))]
 namespace ByteBank.Forum
@@ -56,8 +58,73 @@ namespace ByteBank.Forum
 
             builder.UseCookieAuthentication(new CookieAuthenticationOptions()
             {
-                AuthenticationType =  DefaultAuthenticationTypes.ApplicationCookie
+                AuthenticationType = DefaultAuthenticationTypes.ApplicationCookie
             });
+
+            builder.UseExternalSignInCookie(DefaultAuthenticationTypes.ExternalCookie);
+
+            builder.UseGoogleAuthentication(new GoogleOAuth2AuthenticationOptions
+            {
+
+                ClientId = ConfigurationManager.AppSettings["clientId"],
+                ClientSecret = ConfigurationManager.AppSettings["clienteSecret"],
+                Caption = "Google",
+                AuthenticationType = DefaultAuthenticationTypes.ExternalCookie
+            });
+
+            var dbContextShared = new DbContext();
+            CriarRoles(dbContextShared);
+            CriarAdministrador(dbContextShared);
+        }
+
+        private void CriarRoles(DbContext dbContext)
+        {
+            var roleStore = new RoleStore<IdentityRole>(dbContext.GetCollectionIdentityRole());
+            var roleManager = new RoleManager<IdentityRole>(roleStore);
+            if (!roleManager.RoleExists(RolesNomes.ADMINISTRADOR))
+            {
+                roleManager.Create(new IdentityRole()
+                {
+                    Name = RolesNomes.ADMINISTRADOR
+                });
+            }
+
+            if (!roleManager.RoleExists(RolesNomes.MODERADOR))
+            {
+                roleManager.Create(new IdentityRole()
+                {
+                    Name = RolesNomes.MODERADOR
+                });
+            }            
+            
+        }
+
+        private void CriarAdministrador(DbContext dbContext)
+        {
+            var userStore = new UserStore<Conta>(dbContext.GetCollectionConta());
+            var userManager = new UserManager<Conta>(userStore);
+
+            var email = ConfigurationManager.AppSettings["email"];
+            var userName = ConfigurationManager.AppSettings["user_name"];
+            var senha = ConfigurationManager.AppSettings["senha"];
+
+            var usuario = userManager.FindByEmail(email);
+
+            if (usuario != null)
+                return;
+            else
+            {
+                var administrador = new Conta();
+                administrador.Email = email;
+                administrador.UserName = userName;
+                administrador.EmailConfirmed = true;
+                var result = userManager.Create(administrador, senha);
+                if (!result.Succeeded)
+                {
+                    var teste = result.Errors;
+                }
+                userManager.AddToRole(administrador.Id, RolesNomes.ADMINISTRADOR);
+            }
         }
     }
 }

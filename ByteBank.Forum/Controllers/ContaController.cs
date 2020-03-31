@@ -1,14 +1,8 @@
-﻿using AspNet.Identity.MongoDB;
-using ByteBank.Forum.MongoContext;
-using ByteBank.Forum.MongoContext.DAO;
-using ByteBank.Forum.MongoContext.Model;
+﻿using ByteBank.Forum.MongoContext.Model;
 using ByteBank.Forum.ViewModels;
 using Microsoft.AspNet.Identity;
 using Microsoft.AspNet.Identity.Owin;
 using Microsoft.Owin.Security;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using System.Web;
 using System.Web.Mvc;
@@ -49,7 +43,7 @@ namespace ByteBank.Forum.Controllers
         {
             get
             {
-                return HttpContext.GetOwinContext().Authentication;
+                return Request.GetOwinContext().Authentication;
             }
         }
 
@@ -120,6 +114,31 @@ namespace ByteBank.Forum.Controllers
         }
 
         [HttpPost]
+        public ActionResult LoginPorAutenticacaoExterna(string provider)
+        {
+            SignInManager.AuthenticationManager.Challenge(new AuthenticationProperties
+            {
+                RedirectUri = Url.Action("LoginPorAutenticacaoExternaCallback")
+            }, provider);
+            return new HttpUnauthorizedResult();
+        }
+
+        public async Task<ActionResult> LoginPorAutenticacaoExternaCallback()
+        {
+            var loginInfo = await SignInManager.AuthenticationManager.GetExternalLoginInfoAsync();
+
+            if (loginInfo != null)
+            {
+                var signInResultado = await SignInManager.ExternalSignInAsync(loginInfo, true);
+
+                if (signInResultado == SignInStatus.Success)
+                    return RedirectToAction("Index", "Home");
+            }
+
+            return View("Error");
+        }
+
+        [HttpPost]
         public async Task<ActionResult> Login(ContaLoginViewModel model)
         {
             if (ModelState.IsValid)
@@ -133,6 +152,12 @@ namespace ByteBank.Forum.Controllers
                 switch (signInResult)
                 {
                     case SignInStatus.Success:
+                        if (!usuario.EmailConfirmed)
+                        {
+                            AuthenticationManager.SignOut(DefaultAuthenticationTypes.ApplicationCookie);
+                            return View("AguardandoConfirmacao");
+                        }
+
                         return RedirectToAction("Index", "Home");
                     case SignInStatus.LockedOut:
                         var senhaCorreta = await UserManager.CheckPasswordAsync(usuario, model.Senha);
@@ -148,6 +173,59 @@ namespace ByteBank.Forum.Controllers
             return View(model);
         }
 
+        public ActionResult EsqueciSenha()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        public async Task<ActionResult> EsqueciSenhaAsync(EsqueciSenhaViewModel model)
+        {
+            if (ModelState.IsValid)
+            {
+                var usuario = await UserManager.FindByEmailAsync(model.Email);
+
+                if (usuario != null)
+                {
+                    var token = await UserManager.GeneratePasswordResetTokenAsync(usuario.Id);
+
+                    var linkCallBack = Url.Action("ConfirmacaoAlteracaoSenha", "Conta", new { usuarioId = usuario.Id, token = token }, Request.Url.Scheme);
+
+                    await UserManager.SendEmailAsync(usuario.Id, "Fórum ByteBank - Alteração de senha", $"Bem vindo ao Fórum ByteBank! Clique aqui para alterar a sua senha {linkCallBack}.");
+
+                }
+                return View("EmailAlteracaoSenhaEnviado");
+            }
+
+            return View();
+        }
+
+        public ActionResult ConfirmacaoAlteracaoSenha(string usuarioId, string token)
+        {
+            var model = new ContaConfirmacaoAlteracaoSenhaViewModel()
+            {
+                UsuarioId = usuarioId,
+                Token = token
+            };
+            return View(model);
+        }
+
+        [HttpPost]
+        public async Task<ActionResult> ConfirmacaoAlteracaoSenha(ContaConfirmacaoAlteracaoSenhaViewModel model)
+        {
+            if (ModelState.IsValid)
+            {
+                var result = await UserManager.ResetPasswordAsync(model.UsuarioId, model.Token, model.NovaSenha);
+
+                if (result.Succeeded)
+                {
+                    return RedirectToAction("Index", "Home");
+                }
+                AdicionaErros(result);
+            }
+            return View();
+        }
+
         [HttpPost]
         public ActionResult Logoff()
         {
@@ -159,6 +237,50 @@ namespace ByteBank.Forum.Controllers
         {
             ModelState.AddModelError("", "Credências inválida.");
             return View();
+        }
+
+        [HttpPost]
+        public ActionResult RegistrarPorAutenticacaoExterna(string provider)
+        {
+            SignInManager.AuthenticationManager.Challenge(new AuthenticationProperties
+            {
+                RedirectUri = Url.Action("RegistrarPorAutenticacaoExternaCallback")
+            }, provider);
+            return new HttpUnauthorizedResult();
+        }
+
+        public async Task<ActionResult> RegistrarPorAutenticacaoExternaCallback()
+        {
+            var loginInfo = await SignInManager.AuthenticationManager.GetExternalLoginInfoAsync();
+
+            if (loginInfo != null)
+            {
+                var usuarioExistente = await UserManager.FindByEmailAsync(loginInfo.Email);
+
+                if (usuarioExistente != null)
+                    return View("Error");
+
+                var novoUsuarioAplicacao = new Conta()
+                {
+                    Email = loginInfo.Email,
+                    UserName = loginInfo.Email,
+                    NomeCompleto = loginInfo.ExternalIdentity.FindFirstValue(loginInfo.ExternalIdentity.NameClaimType)
+                };
+
+                var resultado = await UserManager.CreateAsync(novoUsuarioAplicacao);
+
+                if (resultado.Succeeded)
+                {
+                    var resultadoAddLoginInfo = await UserManager.AddLoginAsync(novoUsuarioAplicacao.Id, loginInfo.Login);
+
+                    if (resultadoAddLoginInfo.Succeeded)
+                    {
+                        return RedirectToAction("Index", "Home");
+                    }
+                }
+            }
+
+            return View("Error");
         }
 
         private async Task EnviarEmailConfirmacao(Conta conta)
